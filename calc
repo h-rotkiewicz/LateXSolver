@@ -1,0 +1,16 @@
+#!/bin/bash
+
+backup=".out" 
+
+swap_files () {
+  tmp_name=$(TMPDIR=$(dirname -- "$1") mktemp) &&
+  mv -f -- "$1" "$tmp_name" &&
+  mv -f -- "$2" "$1" &&
+  mv -f -- "$tmp_name" "$2"
+}
+
+touch $1$backup &&
+Eval $1 &&
+swap_files $1 $1$backup &&
+tectonic -X build 
+

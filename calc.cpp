@@ -15,8 +15,7 @@
 
 constexpr std::size_t MAX_LINE_LENGTH = 100;
 
-constexpr auto PATH_TO_SCRIPT =
-    "./EvaluateExpression.Wls \"{}\"";
+constexpr auto PATH_TO_SCRIPT = "~/projects/scripts/Calculator/src/EvaluateExpression.Wls \"{}\"";
 
 enum class COLOR {
 
@@ -45,7 +44,6 @@ std::string prepareString(std::string const &s) {
     }
     ret.push_back(c);
   }
-  // std::cout << "Prepared string: " << ret << "\n";
   return ret;
 };
 
@@ -64,7 +62,7 @@ std::string evaluateLaTeX(std::string const &equation) {
   // Slow way to propagate down the stack, but I don't care
   if (result.find("Syntax") != std::string::npos ||
       result.find("Error") != std::string::npos ||
-      result.find("text") != std::string::npos ||
+      // result.find("text") != std::string::npos ||
       result.find("Failed") != std::string::npos) {
     throw std::runtime_error("Syntax Error: " + equation);
   }
@@ -201,12 +199,12 @@ public:
     auto var = GetVariable(std::stringstream(line));
     if (!var.first.empty() && !var.second.empty()) {
       if (_variables.contains(var.first)) {
-        // std::cout << "Variable " << var.first << " changed from ";
-        // << _variables[var.first] << " to " << var.second << '\n';
+        std::cout << "Variable " << var.first << " changed from "
+                  << _variables[var.first] << " to " << var.second << '\n';
       } else {
         _variables_changed++;
       }
-      std::cout << "Variable " << var.first << " = " << var.second << '\n';
+      // std::cout << "Variable " << var.first << " = " << var.second << '\n';
       _variables[var.first] = var.second;
       _variables_count = _variables.size();
     }
@@ -232,9 +230,13 @@ public:
   Writer(std::string const &ifilename) {
     _ifile.open(ifilename);
     _ofile.open(_ofilename = ifilename + ".out");
+    if(!_ofile.is_open()) {
+      throw std::runtime_error("Error: can't open output file");
+    }
     if (!_ifile.is_open()) {
       throw std::runtime_error("Error: file not found");
     }
+    _ofile.clear();
   }
 
   constexpr auto Helper(std::string const &line) -> std::string { return line; }
@@ -275,18 +277,15 @@ public:
       }
       if (startpos != std::string::npos && endpos == std::string::npos) {
         line += c.substr(startpos + lim.length());
-        // std::cout << "Started line: " << line << "\n";
         checker--;
       } else if ((endpos) != std::string::npos &&
                  startpos == std::string::npos) {
         line += c.substr(0, endpos);
-        // std::cout << "Ended line: " << line << "\n";
         checker++;
       } else if (endpos != std::string::npos && startpos != std::string::npos) {
         line = c.substr(startpos + lim.length(),
                         endpos - (startpos + lim.length()));
         checker = 0;
-        // std::cout << "Full line: " << line << "\n";
       }
       if (checker) {
         continue;
@@ -297,13 +296,12 @@ public:
       std::stringstream ss(line);
       try {
         auto EvaluatedLine = op.expandOP(Helper(line, ops...));
-        // std::cout << "Line: " << EvaluatedLine;
         VM.Detect_variables(EvaluatedLine);
         EvaluatedLine = lim + EvaluatedLine + delim;
         _ofile << EvaluatedLine << "\n";
       } catch (...) {
-        std::cout << "Can't evaluate " << line << ", skipping..."
-                  << "\n";
+        std::cout << COLOR::RED << "Can't evaluate " << line << ", skipping..."
+                  << COLOR::DEFAULT << "\n";
         _ofile << lim << line << delim;
       }
       line = "";
@@ -313,15 +311,6 @@ public:
   }
 };
 
-std::vector<std::string> tokenize(const std::string& input, const std::string& delimiter) {
-    std::vector<std::string> tokens;
-    std::string token;
-    std::istringstream tokenStream(input);
-    while (std::getline(tokenStream, token, *delimiter.begin())) {
-        tokens.push_back(token);
-    }
-    return tokens;
-}
 
 int main(int argc, char *argv[]) {
   VariableManager VM;
@@ -343,30 +332,25 @@ int main(int argc, char *argv[]) {
         continue;
       }
       auto token = Result.substr(pos_start, pos_end - pos_start);
-      std::cout << "Token: " << token << "\n";
-      std::cout << "In line: " << Result << "\n";
-      std::cout << "Pos start: " << pos_start << " Pos end: " << pos_end
-                << "\n";
+      // std::cout << "Token: " << token << "\n";
+      // std::cout << "In line: " << Result << "\n";
+      // std::cout << "Pos start: " << pos_start << " Pos end: " << pos_end
+                // << "\n";
       pos_start = pos_end + 1;
       if (token.empty()) {
         continue;
       }
-      std::cout << "Token is in VM: " << VM.contains(trim(token)) << "\n";
+      // std::cout << "Token is in VM: " << VM.contains(trim(token)) << "\n";
       if (VM.contains(trim(token))) {
         NotSubstituted = false;
         std::string val = VM.GetValue(trim(token));
         Result.replace(Result.find(token), token.length(), val);
-        std::cout << "Substituted " << token << " with " << val << "\n";
+        // std::cout << "Substituted " << token << " with " << val << "\n";
       }
       res.push_back(token);
     }
-    // std::cout << "Recognized tokens in line :" << arg << " : ";
-    // for (auto const &var : res) {
-    //   std::cout << var << " ";
-    //}
     Result = trim(Result);
     if (NotSubstituted) {
-      // std::cout << "No substitution for " << arg << "\n";
       return "CALC(" + arg + ")";
     }
     return arg + " = CALC(" + Result +
